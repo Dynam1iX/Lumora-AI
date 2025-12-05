@@ -1,4 +1,4 @@
-// components/ChatBot.tsx - Главный компонент чата (GLASSMORPHISM)
+// components/ChatBot.tsx - Главный компонент чата
 
 import { useState, useRef, useEffect } from 'react';
 import type { Message } from '../types';
@@ -77,53 +77,56 @@ export const ChatBot = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-[#0a0e1a] via-[#0d1421] to-[#0a0e1a] relative overflow-hidden">
-      {/* Animated Background Lights */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Large glowing orb - top right */}
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-float"></div>
-        
-        {/* Medium glowing orb - bottom left */}
-        <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-purple-500/15 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
-        
-        {/* Small glowing orb - center */}
-        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl animate-glow"></div>
-        
-        {/* Additional accent lights */}
-        <div className="absolute top-20 right-1/4 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl animate-float" style={{ animationDelay: '3s' }}></div>
-        <div className="absolute bottom-1/4 right-1/3 w-56 h-56 bg-pink-500/10 rounded-full blur-3xl animate-glow" style={{ animationDelay: '1s' }}></div>
+    <div className="flex-1 flex items-center justify-center p-4 md:p-10">
+      {/* Bot Info Card - с анимацией появления */}
+      <div className="absolute top-24 left-8 backdrop-blur-md bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl animate-scaleIn hover:scale-105 transition-transform hover:shadow-[0_0_40px_rgba(255,255,255,0.2)]">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full shadow-[0_0_30px_rgba(34,211,238,0.6)]"></div>
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-white">AI Support Bot</p>
+            <p className="text-xs text-gray-400">Готов помочь 24/7</p>
+          </div>
+        </div>
       </div>
 
-      {/* Chat Box with Glassmorphism */}
-      <div className="flex-1 flex items-center justify-center p-4 md:p-10 relative z-10">
-        <div className="w-full max-w-5xl h-full max-h-[800px] rounded-3xl flex flex-col shadow-2xl backdrop-blur-xl bg-white/5 border border-white/10 overflow-hidden">
-          {/* Chat Header */}
-          <ChatHeader />
+      {/* Chat Container - с анимацией подъема */}
+      <div className="w-full max-w-4xl h-full max-h-[700px] rounded-3xl flex flex-col shadow-2xl bg-[#1a1f2e] border border-[#2d3748] overflow-hidden animate-slideUp">
+        {/* Chat Header */}
+        <ChatHeader />
 
-          {/* Messages Container */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-            {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} />
-            ))}
-            
-            {isLoading && (
-              <ChatMessage
-                message={{
-                  id: 'loading',
-                  type: 'bot',
-                  text: '',
-                  timestamp: '',
-                }}
-                isLoading
-              />
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input Area */}
-          <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
+        {/* Messages Container */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-[#0f1419]">
+          {messages.map((message, index) => (
+            <div
+              key={message.id}
+              style={{
+                animation: `fadeIn 0.3s ease-out ${index * 0.1}s backwards`
+              }}
+            >
+              <ChatMessage message={message} />
+            </div>
+          ))}
+          
+          {isLoading && (
+            <ChatMessage
+              message={{
+                id: 'loading',
+                type: 'bot',
+                text: '',
+                timestamp: '',
+              }}
+              isLoading
+            />
+          )}
+          
+          <div ref={messagesEndRef} />
         </div>
+
+        {/* Input Area */}
+        <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} />
       </div>
     </div>
   );

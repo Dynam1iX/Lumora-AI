@@ -1,35 +1,72 @@
-// components/Header.tsx - Шапка приложения (GLASSMORPHISM)
+// components/Header.tsx - Главный хедер с навигацией (EPIC ANIMATIONS 🎯)
 
 import { HomeIcon, ChatIcon, BookIcon, SettingsIcon } from './icons';
 
-export const Header = () => {
+interface HeaderProps {
+  currentPage: 'chat' | 'knowledge' | 'admin';
+  onPageChange: (page: 'chat' | 'knowledge' | 'admin') => void;
+}
+
+export const Header = ({ currentPage, onPageChange }: HeaderProps) => {
   return (
-    <header className="backdrop-blur-xl bg-white/5 border-b border-white/10 px-4 md:px-8 py-4 relative z-20">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        {/* Logo and Title */}
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 backdrop-blur-md bg-white/10 border border-white/20 rounded-xl flex items-center justify-center shadow-lg">
-            <HomeIcon className="w-6 h-6 text-white" />
+    <header className="p-6 backdrop-blur-md bg-white/5 border-b border-white/10 animate-slideDown">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        {/* Logo с пульсирующим свечением */}
+        <div className="flex items-center gap-4 group cursor-pointer hover:scale-110 transition-transform">
+          <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.3)] animate-glow hover:shadow-[0_0_50px_rgba(255,255,255,0.5)]">
+            <HomeIcon className="w-8 h-8 text-gray-900" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">AI Support Matrix</h1>
-            <p className="text-sm text-gray-300">Интеллектуальная система поддержки</p>
+            <h1 className="text-xl font-bold text-white">AI Support Matrix</h1>
+            <p className="text-sm text-gray-400">Интеллектуальная система поддержки</p>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex flex-wrap gap-2">
-          <button className="flex items-center gap-2 px-5 py-2.5 backdrop-blur-md bg-white/10 border border-white/20 text-white rounded-xl text-sm hover:bg-white/15 transition-all shadow-lg">
-            <ChatIcon className="w-5 h-5" />
-            <span>Чат-бот</span>
+        {/* Navigation Buttons - с последовательным появлением */}
+        <nav className="flex gap-3">
+          <button
+            onClick={() => onPageChange('chat')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-medium transition-all shadow-lg hover:scale-105 group ${
+              currentPage === 'chat'
+                ? 'bg-white text-gray-900 shadow-[0_0_30px_rgba(255,255,255,0.4)] scale-105'
+                : 'backdrop-blur-md bg-white/10 border border-white/20 text-gray-300 hover:bg-white/15'
+            }`}
+            style={{
+              animation: 'scaleIn 0.5s ease-out 0.1s backwards'
+            }}
+          >
+            <ChatIcon className={`w-5 h-5 transition-transform ${currentPage !== 'chat' ? 'group-hover:rotate-12' : ''}`} />
+            Чат с AI
           </button>
-          <button className="flex items-center gap-2 px-5 py-2.5 border border-white/10 text-gray-300 rounded-xl text-sm hover:backdrop-blur-md hover:bg-white/10 hover:text-white transition-all">
-            <BookIcon className="w-5 h-5" />
-            <span>База знаний</span>
+          
+          <button
+            onClick={() => onPageChange('knowledge')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-medium transition-all shadow-lg hover:scale-105 group ${
+              currentPage === 'knowledge'
+                ? 'bg-white text-gray-900 shadow-[0_0_30px_rgba(255,255,255,0.4)] scale-105'
+                : 'backdrop-blur-md bg-white/10 border border-white/20 text-gray-300 hover:bg-white/15'
+            }`}
+            style={{
+              animation: 'scaleIn 0.5s ease-out 0.2s backwards'
+            }}
+          >
+            <BookIcon className={`w-5 h-5 transition-transform ${currentPage !== 'knowledge' ? 'group-hover:rotate-12' : ''}`} />
+            База знаний
           </button>
-          <button className="flex items-center gap-2 px-5 py-2.5 border border-white/10 text-gray-300 rounded-xl text-sm hover:backdrop-blur-md hover:bg-white/10 hover:text-white transition-all">
-            <SettingsIcon className="w-5 h-5" />
-            <span>Админка</span>
+          
+          <button
+            onClick={() => onPageChange('admin')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-medium transition-all shadow-lg hover:scale-105 group ${
+              currentPage === 'admin'
+                ? 'bg-white text-gray-900 shadow-[0_0_30px_rgba(255,255,255,0.4)] scale-105'
+                : 'backdrop-blur-md bg-white/10 border border-white/20 text-gray-300 hover:bg-white/15'
+            }`}
+            style={{
+              animation: 'scaleIn 0.5s ease-out 0.3s backwards'
+            }}
+          >
+            <SettingsIcon className={`w-5 h-5 transition-transform ${currentPage !== 'admin' ? 'group-hover:rotate-90' : ''}`} />
+            Админ
           </button>
         </nav>
       </div>
