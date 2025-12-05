@@ -1,4 +1,4 @@
-// components/ChatBot.tsx - Главный компонент чата (как на скрине)
+// components/ChatBot.tsx - Главный компонент чата (GLASSMORPHISM)
 
 import { useState, useRef, useEffect } from 'react';
 import type { Message } from '../types';
@@ -77,10 +77,26 @@ export const ChatBot = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-dark-bg">
-      {/* Chat Box */}
-      <div className="flex-1 flex items-center justify-center p-4 md:p-10">
-        <div className="w-full max-w-5xl h-full max-h-[800px] bg-dark-secondary rounded-2xl border border-dark-tertiary flex flex-col shadow-2xl">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-[#0a0e1a] via-[#0d1421] to-[#0a0e1a] relative overflow-hidden">
+      {/* Animated Background Lights */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Large glowing orb - top right */}
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-float"></div>
+        
+        {/* Medium glowing orb - bottom left */}
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-purple-500/15 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
+        
+        {/* Small glowing orb - center */}
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl animate-glow"></div>
+        
+        {/* Additional accent lights */}
+        <div className="absolute top-20 right-1/4 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl animate-float" style={{ animationDelay: '3s' }}></div>
+        <div className="absolute bottom-1/4 right-1/3 w-56 h-56 bg-pink-500/10 rounded-full blur-3xl animate-glow" style={{ animationDelay: '1s' }}></div>
+      </div>
+
+      {/* Chat Box with Glassmorphism */}
+      <div className="flex-1 flex items-center justify-center p-4 md:p-10 relative z-10">
+        <div className="w-full max-w-5xl h-full max-h-[800px] rounded-3xl flex flex-col shadow-2xl backdrop-blur-xl bg-white/5 border border-white/10 overflow-hidden">
           {/* Chat Header */}
           <ChatHeader />
 
