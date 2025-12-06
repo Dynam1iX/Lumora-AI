@@ -50,11 +50,20 @@ if not exist "backend\.env" (
 
 findstr /C:"your_api_key_here" backend\.env >nul
 if %errorlevel% equ 0 (
-    echo [WARNING] ANTHROPIC_API_KEY not set!
+    echo [ERROR] ANTHROPIC_API_KEY not set!
     echo.
-    echo Please edit backend\.env and add your Anthropic API key
-    echo Get your key from: https://console.anthropic.com/settings/keys
+    echo You MUST add your Anthropic API key to continue!
     echo.
+    echo Quick fix:
+    echo 1. Get key from: https://console.anthropic.com/settings/keys
+    echo 2. Open: backend\.env
+    echo 3. Replace: ANTHROPIC_API_KEY=your_api_key_here
+    echo 4. With: ANTHROPIC_API_KEY=sk-ant-api03-YOUR_KEY
+    echo.
+    echo See FIX_API_KEY.md for detailed instructions
+    echo.
+    pause
+    exit /b 1
 ) else (
     echo [OK] ANTHROPIC_API_KEY configured
 )

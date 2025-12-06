@@ -15,8 +15,15 @@ const getUserInfo = () => {
   let email = localStorage.getItem('user_email');
   let name = localStorage.getItem('user_name');
 
-  if (!email) {
-    email = prompt('Введите ваш email:') || 'user@company.com';
+  // Validate email format
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  if (!email || !isValidEmail(email)) {
+    do {
+      email = prompt('Введите ваш email (например: user@company.com):') || 'user@company.com';
+    } while (!isValidEmail(email));
     localStorage.setItem('user_email', email);
   }
 
@@ -138,9 +145,31 @@ export default function ChatWindow() {
     } catch (error) {
       console.error('Error creating support request:', error);
 
+      let errorContent = '❌ **Ошибка обработки запроса**\n\n';
+
+      // Check if it's a validation error
+      if (error instanceof Error && error.message.includes('422')) {
+        errorContent += '**Проблема валидации данных**\n\n';
+        errorContent += 'Возможно неверный формат email. Проверьте:\n\n';
+        errorContent += `• Email: ${email}\n`;
+        errorContent += `• Имя: ${name}\n\n`;
+        errorContent += 'Чтобы исправить:\n';
+        errorContent += '1. Откройте DevTools (F12) → Application → Local Storage\n';
+        errorContent += '2. Удалите user_email и user_name\n';
+        errorContent += '3. Обновите страницу\n';
+        errorContent += '4. Введите корректный email';
+      } else {
+        errorContent += 'Не удалось связаться с сервером. Пожалуйста:\n\n';
+        errorContent += '1. Проверьте что backend запущен (http://localhost:8000/health)\n';
+        errorContent += '2. Проверьте переменную VITE_API_URL в .env\n';
+        errorContent += '3. Проверьте что ANTHROPIC_API_KEY настроен\n';
+        errorContent += '4. Попробуйте еще раз\n\n';
+        errorContent += `*Ошибка: ${error instanceof Error ? error.message : 'Unknown error'}*`;
+      }
+
       const errorMsg: Message = {
         id: (Date.now() + 3).toString(),
-        content: `❌ **Ошибка обработки запроса**\n\nНе удалось связаться с сервером. Пожалуйста:\n\n1. Проверьте что backend запущен (http://localhost:8000)\n2. Проверьте переменную VITE_API_URL в .env\n3. Попробуйте еще раз\n\n*Ошибка: ${error instanceof Error ? error.message : 'Unknown error'}*`,
+        content: errorContent,
         role: 'bot',
         timestamp: new Date(),
       };

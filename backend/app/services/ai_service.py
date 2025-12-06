@@ -26,41 +26,27 @@ class AIService:
         Returns:
             Dict с полями: category, priority, solution, confidence, needs_human
         """
-        system_prompt = """Вы - AI система первой линии технической поддержки. Ваша задача - ЗАМЕНИТЬ человека на первой линии.
+        system_prompt = """Вы - AI-система техподдержки первой линии. Автоматически решайте типовые IT проблемы.
 
-КРИТИЧЕСКИ ВАЖНО:
-1. Вы ДОЛЖНЫ попытаться решить проблему самостоятельно
-2. Вы ДОЛЖНЫ точно определить категорию и приоритет
-3. ТОЛЬКО если проблема действительно сложная или критичная - передавайте человеку
+КАТЕГОРИИ: access_passwords | network | printers | software | hardware | other
+ПРИОРИТЕТЫ: low | medium | high | critical
 
-КАТЕГОРИИ ПРОБЛЕМ:
-- access_passwords: Доступы, пароли, учетные записи
-- network: Сеть, VPN, интернет
-- printers: Принтеры, печать
-- software: Программное обеспечение, приложения
-- hardware: Оборудование, железо
-- other: Прочее
-
-ПРИОРИТЕТЫ:
-- low: Косметические проблемы, не влияют на работу
-- medium: Проблемы средней важности, работа возможна
-- high: Серьезные проблемы, работа затруднена
-- critical: Критические проблемы, работа невозможна
-
-ФОРМАТ ОТВЕТА (СТРОГО JSON):
+ФОРМАТ ОТВЕТА - ТОЛЬКО JSON:
 {
-  "category": "категория_из_списка",
-  "priority": "приоритет_из_списка",
-  "solution": "Подробное пошаговое решение проблемы",
+  "category": "выберите из списка",
+  "priority": "выберите из списка",
+  "solution": "Краткое пошаговое решение на русском",
   "confidence": 0.85,
   "needs_human": false
 }
 
-ПРАВИЛА ОПРЕДЕЛЕНИЯ needs_human:
-- true: Если проблема требует физического доступа, критична, вы не уверены (confidence < 0.6), или требует админских прав которых у пользователя нет
-- false: Если вы можете дать четкую инструкцию для решения
+ПРАВИЛА:
+- confidence > 0.7 и простая проблема → needs_human: false, дайте решение
+- confidence < 0.7 ИЛИ критичная/сложная → needs_human: true
+- Решение должно быть понятным обычному пользователю
+- Используйте нумерованные шаги
 
-Отвечайте ТОЛЬКО валидным JSON, без дополнительного текста!"""
+Отвечайте ТОЛЬКО валидным JSON!"""
 
         user_message = f"""Проблема пользователя: {problem}"""
 
@@ -75,12 +61,15 @@ class AIService:
         try:
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=2048,
+                max_tokens=1024,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_message}]
             )
 
             response_text = response.content[0].text.strip()
+
+            # Debug: print AI response
+            print(f"AI Response: {response_text[:200]}...")
 
             # Extract JSON from response
             result = self._extract_json(response_text)
@@ -94,11 +83,14 @@ class AIService:
             return result
 
         except Exception as e:
+            # Log error for debugging
+            print(f"AI Service Error: {type(e).__name__}: {str(e)}")
+
             # Fallback in case of error
             return {
                 'category': TicketCategory.OTHER,
                 'priority': TicketPriority.MEDIUM,
-                'solution': f"Не удалось автоматически обработать запрос. Пожалуйста, дождитесь ответа специалиста.",
+                'solution': f"Не удалось автоматически обработать запрос. Ошибка: {type(e).__name__}. Пожалуйста, дождитесь ответа специалиста.",
                 'confidence': 0.0,
                 'needs_human': True
             }
@@ -116,16 +108,36 @@ class AIService:
                 text = json_match.group(0)
 
         try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            # If JSON parsing fails, return default
-            return {
-                'category': 'other',
-                'priority': 'medium',
-                'solution': 'Ошибка обработки. Обратитесь к специалисту.',
-                'confidence': 0.0,
-                'needs_human': True
-            }
+            # Use strict=False to handle control characters
+            result = json.loads(text, strict=False)
+            print(f"JSON parsed successfully!")
+            return result
+        except json.JSONDecodeError as e:
+            # Log the error
+            print(f"JSON Parse Error: {e}")
+
+            # Try to fix common issues: escape newlines in solution field
+            try:
+                # Replace literal newlines with escaped ones in the solution field
+                fixed_text = re.sub(
+                    r'"solution":\s*"([^"]*)"',
+                    lambda m: f'"solution": "{m.group(1).replace(chr(10), "\\n").replace(chr(13), "")}"',
+                    text,
+                    flags=re.DOTALL
+                )
+                result = json.loads(fixed_text, strict=False)
+                print(f"JSON parsed after fixing newlines!")
+                return result
+            except:
+                print(f"Text that failed to parse: {text[:500]}")
+                # If JSON parsing fails, return default
+                return {
+                    'category': 'other',
+                    'priority': 'medium',
+                    'solution': 'Ошибка обработки JSON. Обратитесь к специалисту.',
+                    'confidence': 0.0,
+                    'needs_human': True
+                }
 
     def get_response(
         self,

@@ -15,7 +15,17 @@ export default defineConfig({
     outDir: 'build',
   },
   server: {
-    port: 3000,
+    port: 5173,
     open: true,
+    host: '0.0.0.0', // Allow external access
+    strictPort: true,
+    hmr: {
+      clientPort: 443, // For ngrok HTTPS
+    },
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
   },
 });
