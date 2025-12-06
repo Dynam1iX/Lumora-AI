@@ -21,7 +21,7 @@ echo.
 
 REM Install dependencies
 echo [3/4] Installing dependencies...
-pip install -r requirements.txt
+pip install -r requirements.txt --quiet
 echo.
 
 REM Check if database is seeded
