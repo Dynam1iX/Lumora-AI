@@ -3,11 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from .core.config import settings
 from .core.database import init_db
 from .routers import chat_router, tickets_router, knowledge_router, admin_router
+from .routers import support as support_router
 
 app = FastAPI(
     title="IT HelpDesk API",
-    description="AI-powered IT HelpDesk system with Claude integration",
-    version="1.0.0"
+    description="AI-powered IT HelpDesk system with Claude integration - Replaces Tier 1 Support",
+    version="2.0.0"
 )
 
 # Configure CORS
@@ -20,6 +21,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(support_router.router)  # Main endpoint for frontend
 app.include_router(chat_router)
 app.include_router(tickets_router)
 app.include_router(knowledge_router)

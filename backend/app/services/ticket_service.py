@@ -53,6 +53,13 @@ class TicketService:
         return ticket
 
     @staticmethod
+    def get_by_email(db: Session, email: str, skip: int = 0, limit: int = 100) -> List[Ticket]:
+        """Get all tickets for a specific user by email."""
+        return db.query(Ticket).filter(
+            Ticket.email == email
+        ).order_by(Ticket.created_at.desc()).offset(skip).limit(limit).all()
+
+    @staticmethod
     def count_by_status(db: Session) -> dict:
         """Get count of tickets by status."""
         from sqlalchemy import func

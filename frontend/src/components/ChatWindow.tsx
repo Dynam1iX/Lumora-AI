@@ -1,28 +1,46 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Send, Bot, User, AlertTriangle, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { createSupportRequest, Ticket, PRIORITY_LABELS, CATEGORY_LABELS, STATUS_LABELS } from '../services/api';
 
 interface Message {
   id: string;
   content: string;
   role: 'user' | 'bot';
   timestamp: Date;
-  level?: 'ai' | 'human';
-  needsHumanSupport?: boolean;
+  ticketData?: Ticket;
 }
+
+// Получаем email и имя из localStorage или запрашиваем
+const getUserInfo = () => {
+  let email = localStorage.getItem('user_email');
+  let name = localStorage.getItem('user_name');
+
+  if (!email) {
+    email = prompt('Введите ваш email:') || 'user@company.com';
+    localStorage.setItem('user_email', email);
+  }
+
+  if (!name) {
+    name = prompt('Введите ваше имя:') || 'User';
+    localStorage.setItem('user_name', name);
+  }
+
+  return { email, name };
+};
 
 export default function ChatWindow() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: 'Приветствую! Я AI-ассистент поддержки. Я могу помочь решить большинство проблем автоматически. Если вопрос сложный, я передам его нашим специалистам.',
+      content: 'Приветствую! Я AI-ассистент техподдержки Lumora AI.\n\n✨ Я могу автоматически решить большинство IT проблем.\n\n📝 При каждом обращении я:\n• Создаю тикет\n• Определяю категорию и приоритет\n• Пытаюсь решить проблему\n• Если не могу - передаю специалисту\n\nОпишите вашу проблему, и я помогу!',
       role: 'bot',
       timestamp: new Date(),
-      level: 'ai',
     },
   ]);
   const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { email, name } = getUserInfo();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -32,9 +50,9 @@ export default function ChatWindow() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isTyping) return;
+    if (!input.trim() || isProcessing) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -44,101 +62,93 @@ export default function ChatWindow() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const problemText = input;
     setInput('');
-    setIsTyping(true);
+    setIsProcessing(true);
 
-    // Simulate AI processing
-    setTimeout(() => {
-      const response = analyzeAndRespond(input);
-      const botResponse: Message = {
+    try {
+      // Показываем сообщение о обработке
+      const processingMsg: Message = {
         id: (Date.now() + 1).toString(),
-        content: response.text,
+        content: '⏳ Обрабатываю ваш запрос...\n\n• Создаю тикет\n• Анализирую проблему\n• Ищу решение в базе знаний\n• Определяю категорию и приоритет',
         role: 'bot',
         timestamp: new Date(),
-        level: response.level,
-        needsHumanSupport: response.needsHuman,
       };
-      setMessages((prev) => [...prev, botResponse]);
-      setIsTyping(false);
+      setMessages((prev) => [...prev, processingMsg]);
 
-      // If needs human support, create a ticket automatically
-      if (response.needsHuman) {
-        setTimeout(() => {
-          createSupportTicket(input, response.category);
-          const ticketConfirm: Message = {
-            id: (Date.now() + 2).toString(),
-            content: 'Заявка создана и передана специалистам. Номер заявки: #' + Date.now().toString().slice(-6) + '\n\nСпециалист свяжется с вами в течение 15 минут.',
-            role: 'bot',
-            timestamp: new Date(),
-            level: 'human',
-          };
-          setMessages((prev) => [...prev, ticketConfirm]);
-        }, 1000);
+      // Отправляем запрос к backend
+      const ticket = await createSupportRequest({
+        user_name: name,
+        email: email,
+        problem: problemText,
+      });
+
+      // Удаляем сообщение о обработке
+      setMessages((prev) => prev.filter((msg) => msg.id !== processingMsg.id));
+
+      // Формируем ответ на основе статуса тикета
+      let responseText = '';
+      let icon = '';
+
+      if (ticket.status === 'ai_resolved') {
+        // AI решил проблему
+        icon = '✅';
+        responseText = `${icon} **Проблема решена автоматически!**\n\n`;
+        responseText += `**Тикет #${ticket.id}**\n`;
+        responseText += `Категория: ${CATEGORY_LABELS[ticket.category]}\n`;
+        responseText += `Приоритет: ${PRIORITY_LABELS[ticket.priority]}\n`;
+        responseText += `Уверенность AI: ${Math.round((ticket.ai_confidence || 0) * 100)}%\n\n`;
+        responseText += `**Решение:**\n${ticket.ai_solution}\n\n`;
+        responseText += `💡 *Если решение помогло, проблема автоматически закроется. Если нет - тикет будет передан специалисту.*`;
+      } else if (ticket.status === 'needs_human') {
+        // Нужен специалист
+        icon = '⏳';
+        responseText = `${icon} **Тикет передан специалисту**\n\n`;
+        responseText += `**Тикет #${ticket.id}**\n`;
+        responseText += `Категория: ${CATEGORY_LABELS[ticket.category]}\n`;
+        responseText += `Приоритет: ${PRIORITY_LABELS[ticket.priority]} ${
+          ticket.priority === 'critical' ? '🚨' : ticket.priority === 'high' ? '🔴' : ''
+        }\n\n`;
+
+        if (ticket.ai_solution) {
+          responseText += `**Пока вы ждете, попробуйте:**\n${ticket.ai_solution}\n\n`;
+        }
+
+        responseText += `⏱️ Ожидаемое время ответа: `;
+        if (ticket.priority === 'critical') {
+          responseText += '30 минут - 1 час';
+        } else if (ticket.priority === 'high') {
+          responseText += '1-2 часа';
+        } else {
+          responseText += '2-4 часа';
+        }
+
+        responseText += `\n\n📧 Уведомление будет отправлено на: ${email}`;
       }
-    }, 1500);
-  };
 
-  const analyzeAndRespond = (userInput: string): { text: string; level: 'ai' | 'human'; needsHuman: boolean; category: string } => {
-    // TODO: Заменить на реальный AI/ML анализ через backend API
-    // 
-    // Пример запроса к backend:
-    // const response = await fetch('/api/ai/analyze', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ message: userInput }),
-    // });
-    // const aiResponse = await response.json();
-    // 
-    // Backend должен вернуть:
-    // {
-    //   text: string,           // Ответ AI
-    //   level: 'ai' | 'human',  // Уровень обработки
-    //   needsHuman: boolean,    // Нужна ли эскалация
-    //   category: string,       // Категория запроса
-    //   confidence: number      // Уверенность AI (0-1)
-    // }
+      const botResponse: Message = {
+        id: (Date.now() + 2).toString(),
+        content: responseText,
+        role: 'bot',
+        timestamp: new Date(),
+        ticketData: ticket,
+      };
 
-    // ВРЕМЕННЫЙ placeholder для разработки UI
-    return {
-      text: 'AI Ассистент: Опишите проблему подробнее.\n\nУкажите:\n• Что именно не работает?\n• Когда началась проблема?\n• Какие действия вы уже пробовали?\n\nЯ постараюсь помочь или передам специалисту.',
-      level: 'ai',
-      needsHuman: false,
-      category: 'Общие',
-    };
-  };
+      setMessages((prev) => [...prev, botResponse]);
+    } catch (error) {
+      console.error('Error creating support request:', error);
 
-  const createSupportTicket = (description: string, category: string) => {
-    // TODO: Заменить на реальный API запрос к backend
-    // 
-    // Пример:
-    // const response = await fetch('/api/tickets/create', {
-    //   method: 'POST',
-    //   body: JSON.stringify({
-    //     description,
-    //     category,
-    //     priority: 'high',
-    //     aiEscalated: true
-    //   })
-    // });
+      const errorMsg: Message = {
+        id: (Date.now() + 3).toString(),
+        content: `❌ **Ошибка обработки запроса**\n\nНе удалось связаться с сервером. Пожалуйста:\n\n1. Проверьте что backend запущен (http://localhost:8000)\n2. Проверьте переменную VITE_API_URL в .env\n3. Попробуйте еще раз\n\n*Ошибка: ${error instanceof Error ? error.message : 'Unknown error'}*`,
+        role: 'bot',
+        timestamp: new Date(),
+      };
 
-    // ВРЕМЕННО: сохраняем в localStorage для разработки UI
-    const existingTickets = JSON.parse(localStorage.getItem('tickets') || '[]');
-    
-    const newTicket = {
-      id: Date.now().toString(),
-      title: 'AI эскалация: ' + description.slice(0, 50) + '...',
-      description: description,
-      category: category,
-      priority: 'high',
-      status: 'awaiting_support',
-      name: 'AI System',
-      email: 'ai-escalation@system.local',
-      phone: '',
-      createdAt: new Date().toISOString(),
-      aiEscalated: true,
-      supportLevel: 2,
-    };
-    
-    localStorage.setItem('tickets', JSON.stringify([...existingTickets, newTicket]));
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -148,11 +158,11 @@ export default function ChatWindow() {
         <div className="bg-white rounded-2xl p-4 flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)] transition-all duration-300 hover:scale-110 animate-[glow_2s_ease-in-out_infinite]">
           <Bot className="w-8 h-8 text-black" />
         </div>
-        <div>
-          <h2 className="text-white text-lg">AI Support Bot</h2>
+        <div className="flex-1">
+          <h2 className="text-white text-lg">Lumora AI Support Bot</h2>
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(74,222,128,0.5)]"></div>
-            <p className="text-white/50 text-sm">Онлайн и готов помочь</p>
+            <p className="text-white/50 text-sm">Онлайн • Пользователь: {name}</p>
           </div>
         </div>
       </div>
@@ -165,9 +175,7 @@ export default function ChatWindow() {
             <div
               key={message.id}
               className={`flex items-start animate-[slideUp_0.4s_ease-out] ${
-                message.role === 'user' 
-                  ? 'flex-row-reverse' 
-                  : 'space-x-2 sm:space-x-3'
+                message.role === 'user' ? 'flex-row-reverse' : 'space-x-2 sm:space-x-3'
               }`}
               style={{ animationDelay: `${index * 0.1}s` }}
             >
@@ -195,31 +203,66 @@ export default function ChatWindow() {
                 }`}
               >
                 <p className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</p>
+
+                {/* Ticket info if available */}
+                {message.ticketData && (
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <p className="text-xs text-white/50">
+                      Статус: {STATUS_LABELS[message.ticketData.status]} • Создан:{' '}
+                      {new Date(message.ticketData.created_at).toLocaleTimeString('ru-RU')}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ))}
+
+          {/* Typing Indicator */}
+          {isProcessing && (
+            <div className="flex items-start space-x-2 sm:space-x-3 animate-[slideUp_0.4s_ease-out]">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)] flex items-center justify-center">
+                <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-black" />
+              </div>
+              <div className="bg-[#2a2a2a] px-4 sm:px-6 py-3 sm:py-4 rounded-2xl border border-white/5">
+                <div className="flex space-x-2">
+                  <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-white/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-white/5 p-3 sm:p-4">
-          <form onSubmit={handleSubmit} className="flex space-x-2 sm:space-x-3">
+        <form
+          onSubmit={handleSubmit}
+          className="border-t border-white/10 p-4 sm:p-6 bg-white/5 backdrop-blur-xl"
+        >
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Опишите вашу проблему..."
-              className="flex-1 px-4 sm:px-6 py-3 sm:py-4 bg-[#2a2a2a] border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-white/20 text-white placeholder-white/30"
+              disabled={isProcessing}
+              className="flex-1 bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-white placeholder-white/30 focus:outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 transition-all duration-300 disabled:opacity-50 text-sm sm:text-base"
             />
             <button
               type="submit"
-              className="px-4 sm:px-6 py-3 sm:py-4 bg-white text-black rounded-2xl hover:bg-white/90 transition-all duration-300 flex-shrink-0"
+              disabled={isProcessing || !input.trim()}
+              className="bg-white text-black p-3 sm:p-4 rounded-2xl hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)]"
             >
-              <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Send className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
-          </form>
-        </div>
+          </div>
+
+          <p className="text-white/30 text-xs mt-3 text-center">
+            Каждое сообщение создает тикет и обрабатывается AI
+          </p>
+        </form>
       </div>
     </div>
   );
